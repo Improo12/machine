@@ -1,41 +1,112 @@
-<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
-<CodeBlocks_project_file>
-	<FileVersion major="1" minor="6" />
-	<Project>
-		<Option title="tarea maquina de estado" />
-		<Option pch_mode="2" />
-		<Option compiler="gcc" />
-		<Build>
-			<Target title="Debug">
-				<Option output="bin/Debug/tarea maquina de estado" prefix_auto="1" extension_auto="1" />
-				<Option object_output="obj/Debug/" />
-				<Option type="1" />
-				<Option compiler="gcc" />
-				<Compiler>
-					<Add option="-g" />
-				</Compiler>
-			</Target>
-			<Target title="Release">
-				<Option output="bin/Release/tarea maquina de estado" prefix_auto="1" extension_auto="1" />
-				<Option object_output="obj/Release/" />
-				<Option type="1" />
-				<Option compiler="gcc" />
-				<Compiler>
-					<Add option="-O2" />
-				</Compiler>
-				<Linker>
-					<Add option="-s" />
-				</Linker>
-			</Target>
-		</Build>
-		<Compiler>
-			<Add option="-Wall" />
-		</Compiler>
-		<Unit filename="main.c">
-			<Option compilerVar="CC" />
-		</Unit>
-		<Extensions>
-			<lib_finder disable_auto="1" />
-		</Extensions>
-	</Project>
-</CodeBlocks_project_file>
+#include <stdio.h>
+#include <stdlib.h>
+#include <windows.h> // Necesario para Sleep en Windows
+
+// Definición de los estados de la máquina
+typedef enum {
+    INICIAL,
+    ABRIENDO,
+    CERRANDO,
+    ERROR,
+    DETENIDA,
+    EMERGENCIA,
+    MANTENIMIENTO,
+    BLOQUEADO
+} Estado;
+
+// Variables globales para simular sensores y actuadores
+int sensor_seguridad = 1;
+int motor_activado = 0;
+int intentos_fallidos = 0;
+
+// Función para simular el parpadeo del LED
+void parpadear_led() {
+    printf("LED ON\n");
+    Sleep(500); // Espera 500ms
+    printf("LED OFF\n");
+    Sleep(500);
+}
+
+// Función para simular el control del motor
+void controlar_motor(int activar) {
+    if (activar) {
+        printf("Motor Activado\n");
+    } else {
+        printf("Motor Detenido\n");
+    }
+    motor_activado = activar;
+}
+
+// Función para manejar intentos fallidos y bloquear el sistema si es necesario
+Estado verificar_intentos(Estado estado_actual) {
+    if (intentos_fallidos >= 3) {
+        printf("Sistema bloqueado por demasiados intentos fallidos.\n");
+        return BLOQUEADO;
+    }
+    return estado_actual;
+}
+
+// Función que gestiona las transiciones de la máquina de estados
+Estado maquina_estados(Estado estado_actual, int evento) {
+    switch (estado_actual) {
+        case INICIAL:
+            if (evento == 1) return ABRIENDO;
+            if (evento == 6) return MANTENIMIENTO;
+            break;
+        case ABRIENDO:
+            if (sensor_seguridad == 0) return EMERGENCIA;
+            if (evento == 2) return DETENIDA;
+            if (evento == 3) {
+                intentos_fallidos++;
+                return verificar_intentos(ERROR);
+            }
+            parpadear_led();
+            controlar_motor(1);
+            return ABRIENDO;
+        case CERRANDO:
+            if (sensor_seguridad == 0) return EMERGENCIA;
+            if (evento == 2) return DETENIDA;
+            if (evento == 3) {
+                intentos_fallidos++;
+                return verificar_intentos(ERROR);
+            }
+            parpadear_led();
+            controlar_motor(1);
+            return CERRANDO;
+        case DETENIDA:
+            if (evento == 4) return CERRANDO;
+            if (evento == 1) return ABRIENDO;
+            controlar_motor(0);
+            return DETENIDA;
+        case ERROR:
+            if (evento == 5) {
+                intentos_fallidos = 0;
+                return INICIAL;
+            }
+            return ERROR;
+        case EMERGENCIA:
+            printf("¡Alerta! Modo emergencia activado.\n");
+            if (evento == 5) return INICIAL;
+            return EMERGENCIA;
+        case MANTENIMIENTO:
+            printf("Modo mantenimiento. Se requiere intervención manual.\n");
+            if (evento == 5) return INICIAL;
+            return MANTENIMIENTO;
+        case BLOQUEADO:
+            printf("El sistema está bloqueado. Reinicie manualmente.\n");
+            return BLOQUEADO;
+    }
+    return estado_actual;
+}
+
+int main() {
+    Estado estado_actual = INICIAL;
+    int evento;
+    while (1) {
+        printf("Estado actual: %d\n", estado_actual);
+        printf("Ingrese evento (1: Abrir, 2: Detener, 3: Error, 4: Cerrar, 5: Reset, 6: Mantenimiento): ");
+        scanf("%d", &evento);
+        estado_actual = maquina_estados(estado_actual, evento);
+    }
+    return 0;
+}
