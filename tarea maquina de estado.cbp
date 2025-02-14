@@ -1,6 +1,5 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <windows.h> // Necesario para Sleep en Windows
 
 // Definición de los estados de la máquina
 typedef enum {
